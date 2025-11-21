@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Second Brain</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Second Brain</h1>
+    <p>Capture ideas fast, let the system categorize with PARA.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Quick Capture</h2>
+      <form id="capture-form">
+        <label>Title <input type="text" id="capture-title" required /></label>
+        <label>Content <textarea id="capture-content" rows="3" required></textarea></label>
+        <label>Tags (comma separated) <input type="text" id="capture-tags" /></label>
+        <label>Source <input type="text" id="capture-source" placeholder="email, web, meeting" /></label>
+        <button type="submit">Capture</button>
+      </form>
+      <div id="capture-result" class="card hidden"></div>
+    </section>
+
+    <section class="panel">
+      <h2>All Notes</h2>
+      <div class="filters">
+        <label for="filter">Filter by PARA bucket:</label>
+        <select id="filter">
+          <option value="">All</option>
+          <option value="projects">Projects</option>
+          <option value="areas">Areas</option>
+          <option value="resources">Resources</option>
+          <option value="archives">Archives</option>
+        </select>
+      </div>
+      <div id="notes"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
