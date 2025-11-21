@@ -3,39 +3,78 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from .models import Category
+from .models import ParaBucket
 
 
 @dataclass
 class ClassificationResult:
-    category: Category
+    bucket: ParaBucket
+    area_name: str | None
+    project_outcome: str | None
+    confidence: float
+    method: str
     reason: str
 
 
-KEYWORD_MAP: dict[Category, set[str]] = {
-    Category.PROJECTS: {"deliverable", "deadline", "milestone", "launch", "proposal"},
-    Category.AREAS: {"process", "habit", "maintenance", "operations", "health"},
-    Category.RESOURCES: {"reference", "ideas", "research", "learning", "snippet", "template"},
-    Category.ARCHIVES: {"archive", "completed", "done", "past"},
+AREA_MAP: dict[str, set[str]] = {
+    "Cooking": {"recipe", "cook", "kitchen", "bake", "pancake", "dinner"},
+    "Health": {"run", "workout", "gym", "sleep", "diet", "nutrition"},
+    "Finance": {"budget", "invest", "salary", "raise", "401k", "tax"},
 }
+
+ACTION_VERBS = {
+    "make",
+    "cook",
+    "write",
+    "publish",
+    "send",
+    "plan",
+    "fix",
+    "schedule",
+    "set up",
+}
+
+TIME_SIGNALS = {"today", "tomorrow", "this weekend", "by ", "due ", "next "}
 
 
 def classify(content: str, title: str | None = None, tags: Iterable[str] | None = None) -> ClassificationResult:
-    text = f"{title or ''} {content}".lower()
+    text = f"{title or ''}\n{content}".lower()
     tag_text = " ".join(tags or []).lower()
     text_blob = f"{text} {tag_text}"
 
-    scores: dict[Category, int] = {category: 0 for category in Category}
-    for category, keywords in KEYWORD_MAP.items():
-        scores[category] = sum(1 for word in keywords if word in text_blob)
+    has_time_signal = any(signal in text_blob for signal in TIME_SIGNALS)
+    has_action_verb = any(verb in text_blob for verb in ACTION_VERBS)
 
-    # Prioritize explicit mentions of PARA buckets when present
-    for category in Category:
-        if category.value in text_blob:
-            scores[category] += 2
+    if has_time_signal and has_action_verb:
+        project_outcome = title or "Untitled project"
+        reason = "Detected time and action cues indicative of a project."
+        return ClassificationResult(
+            bucket=ParaBucket.PROJECT,
+            area_name=None,
+            project_outcome=project_outcome,
+            confidence=0.7,
+            method="heuristic",
+            reason=reason,
+        )
 
-    best_category = max(scores, key=scores.get)
-    reason = "Heuristic classification based on keywords: " + ", ".join(
-        f"{cat.value}={score}" for cat, score in scores.items()
+    for area, keywords in AREA_MAP.items():
+        if any(keyword in text_blob for keyword in keywords):
+            reason = f"Matched area keywords for {area}."
+            return ClassificationResult(
+                bucket=ParaBucket.RESOURCE,
+                area_name=area,
+                project_outcome=None,
+                confidence=0.6,
+                method="heuristic",
+                reason=reason,
+            )
+
+    reason = "Defaulted to resource based on heuristic rules."
+    return ClassificationResult(
+        bucket=ParaBucket.RESOURCE,
+        area_name=None,
+        project_outcome=None,
+        confidence=0.4,
+        method="heuristic",
+        reason=reason,
     )
-    return ClassificationResult(category=best_category, reason=reason)

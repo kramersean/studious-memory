@@ -51,13 +51,14 @@ curl -X POST http://localhost:8000/capture \
     "captured_from": "curl-demo"
   }'
 ```
-The response returns the stored note plus the suggested PARA category and reasoning.
+The response returns the stored note plus the suggested PARA bucket, confidence, and reasoning.
 
 ## API quick reference
 - `GET /health` – service status
-- `GET /notes?category={projects|areas|resources|archives}` – list notes, optionally filtered
-- `POST /notes` – create a note with explicit PARA category
-- `PATCH /notes/{id}` – update note fields
+- `GET /notes?para_bucket={project|area|resource|archive}` – list notes, optionally filtered
+- `POST /notes` – create a note with explicit PARA bucket and optional area/project metadata
+- `PATCH /notes/{id}` – update note fields, marking overrides when the PARA bucket changes
+- `PATCH /notes/{id}/para` – shortcut endpoint to change the PARA bucket (records original bucket and user override)
 - `POST /capture` – quick capture that auto-categorizes using heuristics and returns the suggested bucket with rationale
 
 Notes are stored with timestamps, optional tags, and source metadata for future retrieval.
