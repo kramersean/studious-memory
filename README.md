@@ -19,6 +19,9 @@ pip install -r requirements.txt
 uvicorn backend.app:app --reload --port 8000
 ```
 
+If you have an older `backend/notes.db` from a previous run, the app will auto-add
+missing PARA columns on startup. You can also delete the file to start fresh.
+
 ### Frontend
 Serve the static assets from `frontend/` using any web server, for example:
 ```bash
