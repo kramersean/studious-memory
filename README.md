@@ -37,8 +37,8 @@ cd frontend
 python -m http.server 3000
 ```
 3) Open the app: http://localhost:3000
-4) Try a quick capture: enter a title/content and press **Quick Capture**. The backend will suggest a PARA bucket, store the note, and the UI will show the result immediately along with its confidence and any detected area or project outcome.
-5) Browse buckets: use the **Filter by PARA** buttons to view notes by Projects, Areas, Resources, or Archives. Each card includes a dropdown to reassign the PARA bucket, marking the note as a user override so you can track corrections.
+4) Try a quick capture: enter a title/content and press **Quick Capture**. The backend will suggest a PARA bucket, store the note, and the UI will show the result immediately.
+5) Browse buckets: use the **Filter by PARA** buttons to view notes by Projects, Areas, Resources, or Archives.
 
 You can also exercise the API directly with curl:
 ```bash
@@ -51,14 +51,13 @@ curl -X POST http://localhost:8000/capture \
     "captured_from": "curl-demo"
   }'
 ```
-The response returns the stored note plus the suggested PARA bucket, confidence, and reasoning.
+The response returns the stored note plus the suggested PARA category and reasoning.
 
 ## API quick reference
 - `GET /health` – service status
-- `GET /notes?para_bucket={project|area|resource|archive}` – list notes, optionally filtered
-- `POST /notes` – create a note with explicit PARA bucket and optional area/project metadata
-- `PATCH /notes/{id}` – update note fields, marking overrides when the PARA bucket changes
-- `PATCH /notes/{id}/para` – shortcut endpoint to change the PARA bucket (records original bucket and user override)
+- `GET /notes?category={projects|areas|resources|archives}` – list notes, optionally filtered
+- `POST /notes` – create a note with explicit PARA category
+- `PATCH /notes/{id}` – update note fields
 - `POST /capture` – quick capture that auto-categorizes using heuristics and returns the suggested bucket with rationale
 
 Notes are stored with timestamps, optional tags, and source metadata for future retrieval.

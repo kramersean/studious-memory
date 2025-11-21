@@ -5,12 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, session_scope
-from .models import Note, ParaBucket, default_tags, tags_to_list
+from .models import Category, Note, default_tags, tags_to_list
 from .schemas import (
     NoteCreate,
     NoteOut,
     NoteUpdate,
-    ParaUpdate,
     QuickCaptureRequest,
     QuickCaptureResponse,
 )
@@ -42,10 +41,10 @@ def health() -> dict[str, str]:
 
 
 @app.get("/notes", response_model=list[NoteOut])
-def list_notes(para_bucket: ParaBucket | None = None, db: Session = Depends(get_db)):
+def list_notes(category: Category | None = None, db: Session = Depends(get_db)):
     query = db.query(Note)
-    if para_bucket:
-        query = query.filter(Note.para_bucket == para_bucket)
+    if category:
+        query = query.filter(Note.category == category)
     return [serialize_note(note) for note in query.order_by(Note.updated_at.desc()).all()]
 
 
@@ -54,13 +53,7 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
     note = Note(
         title=payload.title,
         content=payload.content,
-        para_bucket=payload.para_bucket,
-        area_name=payload.area_name,
-        project_outcome=payload.project_outcome,
-        classification_confidence=payload.classification_confidence,
-        classified_by=payload.classified_by,
-        user_overridden=payload.user_overridden,
-        original_para_bucket=payload.original_para_bucket,
+        category=payload.category,
         tags=default_tags(payload.tags),
         captured_from=payload.captured_from,
     )
@@ -80,27 +73,10 @@ def update_note(note_id: int, payload: NoteUpdate, db: Session = Depends(get_db)
         note.title = payload.title
     if payload.content is not None:
         note.content = payload.content
-    if payload.para_bucket is not None and payload.para_bucket != note.para_bucket:
-        if note.original_para_bucket is None:
-            note.original_para_bucket = note.para_bucket.value
-        note.para_bucket = payload.para_bucket
-        note.user_overridden = True
-    if payload.area_name is not None:
-        note.area_name = payload.area_name
-    if payload.project_outcome is not None:
-        note.project_outcome = payload.project_outcome
-    if payload.classification_confidence is not None:
-        note.classification_confidence = payload.classification_confidence
-    if payload.classified_by is not None:
-        note.classified_by = payload.classified_by
-    if payload.user_overridden is not None:
-        note.user_overridden = payload.user_overridden
-    if payload.original_para_bucket is not None:
-        note.original_para_bucket = payload.original_para_bucket
+    if payload.category is not None:
+        note.category = payload.category
     if payload.tags is not None:
         note.tags = default_tags(payload.tags)
-    if payload.captured_from is not None:
-        note.captured_from = payload.captured_from
     note.touch()
 
     db.add(note)
@@ -116,12 +92,7 @@ def quick_capture(payload: QuickCaptureRequest, db: Session = Depends(get_db)):
     note = Note(
         title=payload.title,
         content=payload.content,
-        para_bucket=result.bucket,
-        area_name=result.area_name,
-        project_outcome=result.project_outcome,
-        classification_confidence=result.confidence,
-        classified_by=result.method,
-        user_overridden=False,
+        category=result.category,
         tags=default_tags(payload.tags),
         captured_from=payload.captured_from or "quick-capture",
     )
@@ -130,37 +101,7 @@ def quick_capture(payload: QuickCaptureRequest, db: Session = Depends(get_db)):
     db.refresh(note)
 
     note_out = serialize_note(note)
-    return QuickCaptureResponse(
-        suggested_bucket=result.bucket,
-        note=note_out,
-        reason=result.reason,
-        confidence=result.confidence,
-        area_name=result.area_name,
-        project_outcome=result.project_outcome,
-    )
-
-
-@app.patch("/notes/{note_id}/para", response_model=NoteOut)
-def override_para(note_id: int, payload: ParaUpdate, db: Session = Depends(get_db)):
-    note = db.get(Note, note_id)
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found")
-
-    if note.original_para_bucket is None:
-        note.original_para_bucket = note.para_bucket.value
-
-    note.para_bucket = payload.para_bucket
-    note.area_name = payload.area_name
-    note.project_outcome = payload.project_outcome
-    note.user_overridden = True
-    note.classified_by = note.classified_by or "heuristic"
-
-    note.touch()
-
-    db.add(note)
-    db.commit()
-    db.refresh(note)
-    return serialize_note(note)
+    return QuickCaptureResponse(suggested_category=result.category, note=note_out, reason=result.reason)
 
 
 def serialize_note(note: Note) -> NoteOut:
@@ -168,13 +109,7 @@ def serialize_note(note: Note) -> NoteOut:
         id=note.id,
         title=note.title,
         content=note.content,
-        para_bucket=note.para_bucket,
-        area_name=note.area_name,
-        project_outcome=note.project_outcome,
-        classification_confidence=note.classification_confidence,
-        classified_by=note.classified_by,
-        user_overridden=note.user_overridden,
-        original_para_bucket=note.original_para_bucket,
+        category=note.category,
         tags=tags_to_list(note.tags),
         created_at=note.created_at,
         updated_at=note.updated_at,
