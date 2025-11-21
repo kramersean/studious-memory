@@ -9,6 +9,13 @@ const captureResult = document.getElementById('capture-result');
 const filterSelect = document.getElementById('filter');
 const notesContainer = document.getElementById('notes');
 
+const BUCKET_LABELS = {
+  project: 'Project',
+  area: 'Area',
+  resource: 'Resource',
+  archive: 'Archive',
+};
+
 async function fetchJSON(url, options = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -18,6 +25,7 @@ async function fetchJSON(url, options = {}) {
     const error = await res.text();
     throw new Error(error || 'Request failed');
   }
+  if (res.status === 204) return null;
   return res.json();
 }
 
@@ -29,8 +37,8 @@ function parseTags(raw) {
 }
 
 async function loadNotes() {
-  const category = filterSelect.value;
-  const url = category ? `${API_BASE}/notes?category=${category}` : `${API_BASE}/notes`;
+  const bucket = filterSelect.value;
+  const url = bucket ? `${API_BASE}/notes?para_bucket=${bucket}` : `${API_BASE}/notes`;
   const notes = await fetchJSON(url);
   renderNotes(notes);
 }
@@ -48,21 +56,87 @@ function renderNotes(notes) {
 
     const header = document.createElement('div');
     header.className = 'note-header';
-    header.innerHTML = `<strong>${note.title}</strong><span class="badge">${note.category}</span>`;
+    header.innerHTML = `<strong>${note.title}</strong><span class="badge bucket-${note.para_bucket}">${BUCKET_LABELS[note.para_bucket] || note.para_bucket}</span>`;
+
+    const paraControls = document.createElement('div');
+    paraControls.className = 'para-controls';
+
+    const select = document.createElement('select');
+    select.className = 'bucket-select';
+    Object.entries(BUCKET_LABELS).forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      if (note.para_bucket === value) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    select.addEventListener('change', async (event) => {
+      try {
+        await updateParaBucket(note.id, event.target.value, note.area_name, note.project_outcome);
+        await loadNotes();
+      } catch (err) {
+        alert(err.message);
+        select.value = note.para_bucket;
+      }
+    });
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'ghost-button';
+    deleteButton.type = 'button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', async () => {
+      if (!confirm('Delete this note?')) return;
+      try {
+        await deleteNote(note.id);
+        await loadNotes();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    paraControls.appendChild(select);
+    paraControls.appendChild(deleteButton);
+    header.appendChild(paraControls);
 
     const meta = document.createElement('div');
     meta.className = 'note-meta';
     const updated = new Date(note.updated_at).toLocaleString();
-    meta.textContent = `${updated}${note.tags ? ' · ' + note.tags.join(', ') : ''}`;
+    const tags = note.tags ? note.tags.join(', ') : '';
+    const confidence = note.classification_confidence
+      ? ` · ${Math.round(note.classification_confidence * 100)}% confidence`
+      : '';
+    meta.textContent = `${updated}${tags ? ' · ' + tags : ''}${confidence}`;
 
     const content = document.createElement('div');
     content.className = 'note-content';
     content.textContent = note.content;
 
+    const area = document.createElement('div');
+    area.className = 'note-area';
+    area.textContent = note.area_name ? `Area: ${note.area_name}` : '';
+
     card.appendChild(header);
     card.appendChild(meta);
     card.appendChild(content);
+    if (note.area_name) {
+      card.appendChild(area);
+    }
     notesContainer.appendChild(card);
+  });
+}
+
+async function updateParaBucket(id, para_bucket, area_name, project_outcome) {
+  return fetchJSON(`${API_BASE}/notes/${id}/para`, {
+    method: 'PATCH',
+    body: JSON.stringify({ para_bucket, area_name, project_outcome }),
+  });
+}
+
+async function deleteNote(id) {
+  return fetchJSON(`${API_BASE}/notes/${id}`, {
+    method: 'DELETE',
   });
 }
 
@@ -86,11 +160,13 @@ captureForm.addEventListener('submit', async (event) => {
     captureResult.classList.remove('hidden');
     captureResult.innerHTML = `
       <div class="note-header">
-        <strong>Suggested: ${response.suggested_category}</strong>
-        <span class="badge">${response.note.category}</span>
+        <strong>Suggested: ${BUCKET_LABELS[response.suggested_bucket] || response.suggested_bucket}</strong>
+        <span class="badge bucket-${response.note.para_bucket}">${BUCKET_LABELS[response.note.para_bucket] || response.note.para_bucket}</span>
       </div>
-      <div class="note-meta">${response.reason}</div>
+      <div class="note-meta">${response.reason} · ${Math.round(response.confidence * 100)}% confidence</div>
       <div class="note-content">${response.note.title}: ${response.note.content}</div>
+      ${response.area_name ? `<div class="note-area">Area: ${response.area_name}</div>` : ''}
+      ${response.project_outcome ? `<div class="note-area">Outcome: ${response.project_outcome}</div>` : ''}
     `;
 
     captureForm.reset();
