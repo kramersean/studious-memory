@@ -37,8 +37,8 @@ cd frontend
 python -m http.server 3000
 ```
 3) Open the app: http://localhost:3000
-4) Try a quick capture: enter a title/content and press **Quick Capture**. The backend will suggest a PARA bucket, store the note, and the UI will show the result immediately along with its confidence and any detected area or project outcome.
-5) Browse buckets: use the **Filter by PARA** buttons to view notes by Projects, Areas, Resources, or Archives. Each card includes a dropdown to reassign the PARA bucket, marking the note as a user override so you can track corrections.
+4) Try a quick capture: enter a title/content and press **Quick Capture**. The backend will suggest a PARA bucket, store the note, and the UI will show the result immediately.
+5) Browse buckets: use the **Filter by PARA** buttons to view notes by Projects, Areas, Resources, or Archives.
 
 You can also exercise the API directly with curl:
 ```bash
